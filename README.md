@@ -1,17 +1,26 @@
-# pokedex_app
+# Pokédex
 
-A new Flutter project.
+Flutter Pokédex app built with a feature-first architecture.
 
-## Getting Started
+## Run
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter run
+flutter analyze
+flutter test
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Structure
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```text
+lib/
+  main.dart     entry point (ProviderScope + runApp)
+  app/          MaterialApp, router, theme
+  core/         app-agnostic tech: network, errors, constants
+  shared/       Pokémon-aware code used by 2+ features
+  features/     one folder per feature (data / domain / presentation)
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Full guide (how to add a screen, widget, API service, feature) is written
+in the final refactor step.
