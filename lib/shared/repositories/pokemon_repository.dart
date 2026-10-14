@@ -9,8 +9,12 @@ import '../models/pokemon_summary.dart';
 class PokemonRepository {
   PokemonRepository(this._dataSource);
 
+  /// Comfortably above the ~1350 entries PokéAPI currently lists.
+  static const _indexLimit = 3000;
+
   final PokeApiDataSource _dataSource;
   final Map<String, Pokemon> _cache = {};
+  List<PokemonSummary>? _index;
 
   Future<PokemonPage> getPage({
     int limit = ApiConstants.defaultPageSize,
@@ -18,6 +22,14 @@ class PokemonRepository {
   }) async {
     final json = await _dataSource.fetchPokemonPage(limit: limit, offset: offset);
     return _parse(() => PokemonPage.fromJson(json));
+  }
+
+  /// Every Pokémon's id + name in one request. Cached; used for search.
+  Future<List<PokemonSummary>> getIndex() async {
+    final cached = _index;
+    if (cached != null) return cached;
+    final page = await getPage(limit: _indexLimit);
+    return _index = page.items;
   }
 
   /// [idOrName] is a Pokédex number or a name.
