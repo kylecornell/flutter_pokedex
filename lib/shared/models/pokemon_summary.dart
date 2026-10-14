@@ -22,6 +22,9 @@ class PokemonSummary {
   final String name;
 
   String get artworkUrl => Pokemon.artworkUrlForId(id);
+
+  /// Small pixel sprite, good for suggestion rows and chips.
+  String get spriteUrl => Pokemon.spriteUrlForId(id);
 }
 
 /// One page of the list endpoint.

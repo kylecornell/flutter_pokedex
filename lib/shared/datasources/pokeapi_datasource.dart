@@ -1,4 +1,3 @@
-import '../../core/constants/api_constants.dart';
 import '../../core/network/api_client.dart';
 
 /// Knows PokéAPI URLs. Returns raw JSON; parsing happens in the repository.
@@ -7,13 +6,11 @@ class PokeApiDataSource {
 
   final ApiClient _client;
 
-  Future<Map<String, dynamic>> fetchPokemonPage({
-    int limit = ApiConstants.defaultPageSize,
-    int offset = 0,
-  }) {
+  /// Name + url of every species (the National Pokédex, no alternate forms).
+  Future<Map<String, dynamic>> fetchSpeciesList({int limit = 2000}) {
     return _client.getJson(
-      'pokemon',
-      query: {'limit': '$limit', 'offset': '$offset'},
+      'pokemon-species',
+      query: {'limit': '$limit', 'offset': '0'},
     );
   }
 
@@ -33,5 +30,13 @@ class PokeApiDataSource {
   /// [name] is a type name such as `fire`.
   Future<Map<String, dynamic>> fetchType(String name) {
     return _client.getJson('type/${name.toLowerCase()}');
+  }
+
+  Future<Map<String, dynamic>> fetchAbility(String name) {
+    return _client.getJson('ability/${name.toLowerCase()}');
+  }
+
+  Future<Map<String, dynamic>> fetchMove(String name) {
+    return _client.getJson('move/${name.toLowerCase()}');
   }
 }

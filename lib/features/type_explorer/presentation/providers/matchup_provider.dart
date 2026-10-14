@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/providers/type_providers.dart';
-import '../../domain/services/type_effectiveness_service.dart';
+import '../../domain/type_effectiveness_service.dart';
 
 /// What the user picked on the matchup screen.
 class MatchupSelection {

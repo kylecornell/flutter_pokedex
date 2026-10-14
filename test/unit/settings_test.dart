@@ -18,6 +18,8 @@ void main() {
       expect(s.themeMode, ThemeMode.system);
       expect(s.animationsEnabled, isTrue);
       expect(s.gridDensity, GridDensity.comfortable);
+      expect(s.cardEffects, isTrue);
+      expect(s.viewerMode, ViewerMode.art);
     });
 
     test('round-trips all fields', () async {
@@ -28,11 +30,15 @@ void main() {
         themeMode: ThemeMode.dark,
         animationsEnabled: false,
         gridDensity: GridDensity.compact,
+        cardEffects: false,
+        viewerMode: ViewerMode.model3d,
       ));
       final s = ds.load();
       expect(s.themeMode, ThemeMode.dark);
       expect(s.animationsEnabled, isFalse);
       expect(s.gridDensity, GridDensity.compact);
+      expect(s.cardEffects, isFalse);
+      expect(s.viewerMode, ViewerMode.model3d);
     });
 
     test('unknown stored values fall back to defaults', () async {
@@ -56,15 +62,21 @@ void main() {
     await n.setThemeMode(ThemeMode.light);
     await n.setAnimationsEnabled(false);
     await n.setGridDensity(GridDensity.compact);
+    await n.setCardEffects(false);
+    await n.setViewerMode(ViewerMode.animated);
 
     final s = c.read(settingsProvider);
     expect(s.themeMode, ThemeMode.light);
     expect(s.animationsEnabled, isFalse);
     expect(s.gridDensity, GridDensity.compact);
+    expect(s.cardEffects, isFalse);
+    expect(s.viewerMode, ViewerMode.animated);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('settings_theme_mode'), 'light');
     expect(prefs.getBool('settings_animations'), isFalse);
     expect(prefs.getString('settings_grid_density'), 'compact');
+    expect(prefs.getBool('settings_card_effects'), isFalse);
+    expect(prefs.getString('settings_viewer_mode'), 'animated');
   });
 }

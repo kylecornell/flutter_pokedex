@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/utils/text_format.dart';
+import 'type_icon.dart';
 
 const _typeColors = <String, Color>{
   'normal': Color(0xFFA8A77A),
@@ -23,32 +24,60 @@ const _typeColors = <String, Color>{
   'fairy': Color(0xFFD685AD),
 };
 
+/// Types whose color is dark enough to need white text.
+const _lightInkTypes = {'fighting', 'poison', 'ghost', 'dragon', 'dark'};
+
 /// Brand color of a Pokémon type; grey for unknown types.
 Color typeColor(String type) => _typeColors[type] ?? const Color(0xFF9E9E9E);
 
-/// Colored pill with the type name. Pass [onTap] to make it tappable.
+/// Readable text/icon color on top of [typeColor].
+Color typeInk(String type) =>
+    _lightInkTypes.contains(type) ? Colors.white : const Color(0xFF18181B);
+
+/// Colored pill with the type name. Pass [onTap] to make it tappable and
+/// [showIcon] to prefix the type icon.
 class TypeBadge extends StatelessWidget {
-  const TypeBadge({super.key, required this.type, this.onTap});
+  const TypeBadge({
+    super.key,
+    required this.type,
+    this.onTap,
+    this.showIcon = false,
+  });
 
   final String type;
   final VoidCallback? onTap;
+  final bool showIcon;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: typeColor(type),
-      shape: const StadiumBorder(),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          child: Text(
-            formatPokemonName(type),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              shadows: [Shadow(blurRadius: 2, color: Colors.black38)],
+    final ink = typeInk(type);
+    return Semantics(
+      button: onTap != null,
+      label: '${formatPokemonName(type)} type',
+      child: Material(
+        color: typeColor(type),
+        shape: const StadiumBorder(),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showIcon) ...[
+                  Icon(typeIconData(type), size: 13, color: ink),
+                  const SizedBox(width: 4),
+                ],
+                Text(
+                  formatPokemonName(type),
+                  style: TextStyle(
+                    color: ink,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

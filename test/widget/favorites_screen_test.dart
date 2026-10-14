@@ -1,91 +1,130 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:pokedex_app/core/network/api_client.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pokedex_app/shared/widgets/chips.dart';
 import 'package:pokedex_app/features/favorites/presentation/screens/favorites_screen.dart';
-import 'package:pokedex_app/shared/datasources/pokeapi_datasource.dart';
-import 'package:pokedex_app/shared/providers/pokemon_providers.dart';
-import 'package:pokedex_app/shared/repositories/pokemon_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../helpers/prefs.dart';
+import '../helpers/fake_api.dart';
+import '../helpers/pump_app.dart';
 
-const _listJson = '''
-{"count":3,"next":null,"results":[
-  {"name":"bulbasaur","url":"https://pokeapi.co/api/v2/pokemon/1/"},
-  {"name":"ivysaur","url":"https://pokeapi.co/api/v2/pokemon/2/"},
-  {"name":"venusaur","url":"https://pokeapi.co/api/v2/pokemon/3/"}]}''';
-
-Future<Widget> _app({
+Future<Widget> favorites(
+  FakePokeApi api, {
   List<String> saved = const [],
-  Future<http.Response> Function(http.Request)? api,
 }) async {
-  final repo = PokemonRepository(
-    PokeApiDataSource(
-      ApiClient(
-        client: MockClient(api ?? (_) async => http.Response(_listJson, 200)),
+  return testRouterApp(
+    [
+      GoRoute(path: '/', builder: (_, _) => const FavoritesScreen()),
+      GoRoute(
+        path: '/pokedex',
+        builder: (_, _) => const Scaffold(body: Text('pokedex tab')),
       ),
+      GoRoute(
+        path: '/pokemon/:id',
+        builder: (_, s) =>
+            Scaffold(body: Text('details ${s.pathParameters['id']}')),
+      ),
+    ],
+    overrides: await overridesFor(
+      api,
+      prefs: {if (saved.isNotEmpty) 'favorite_pokemon_ids': saved},
     ),
   );
-  return ProviderScope(
-    overrides: [
-      await prefsOverride({
-        if (saved.isNotEmpty) 'favorite_pokemon_ids': saved,
-      }),
-      pokemonRepositoryProvider.overrideWithValue(repo),
-    ],
-    child: const MaterialApp(home: FavoritesScreen()),
-  );
-}
-
-Future<void> _settle(WidgetTester tester) async {
-  for (var i = 0; i < 5; i++) {
-    await tester.pump();
-  }
 }
 
 void main() {
-  testWidgets('shows empty state', (tester) async {
-    await tester.pumpWidget(await _app());
-    await tester.pump();
+  testWidgets('empty state offers to browse', (tester) async {
+    await tester.pumpWidget(await favorites(FakePokeApi()));
+    await settle(tester);
 
-    expect(find.textContaining('No favorites yet'), findsOneWidget);
+    expect(find.text('My collection'), findsOneWidget);
+    expect(find.text('0 of 6 collected'), findsOneWidget);
+    expect(find.text('No favorites yet'), findsOneWidget);
+
+    await tester.tap(find.text('Browse Pokémon'));
+    await settle(tester);
+    expect(find.text('pokedex tab'), findsOneWidget);
   });
 
-  testWidgets('lists saved Pokémon, newest first', (tester) async {
-    await tester.pumpWidget(await _app(saved: ['3', '1']));
-    await _settle(tester);
+  testWidgets('lists saved Pokémon, newest first, with collection count',
+      (tester) async {
+    await tester.pumpWidget(
+      await favorites(FakePokeApi(), saved: ['6', '1']),
+    );
+    await settle(tester);
 
-    expect(find.text('Venusaur'), findsOneWidget);
+    expect(find.text('2 of 6 collected'), findsOneWidget);
+    expect(find.text('Charizard'), findsOneWidget);
     expect(find.text('Bulbasaur'), findsOneWidget);
     expect(find.text('Ivysaur'), findsNothing);
 
-    final venusaurX = tester.getTopLeft(find.text('Venusaur')).dx;
-    final bulbasaurX = tester.getTopLeft(find.text('Bulbasaur')).dx;
-    expect(venusaurX, lessThan(bulbasaurX));
+    final first = tester.getTopLeft(find.text('Charizard'));
+    final second = tester.getTopLeft(find.text('Bulbasaur'));
+    expect(first.dx, lessThan(second.dx));
+  });
+
+  testWidgets('search and type chips filter the collection', (tester) async {
+    await tester.pumpWidget(
+      await favorites(FakePokeApi(), saved: ['6', '1', '4']),
+    );
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField), 'char');
+    await settle(tester);
+    expect(find.text('Bulbasaur'), findsNothing);
+    expect(find.text('Charizard'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'zzz');
+    await settle(tester);
+    expect(
+      find.text('No saved Pokémon match your filters.'),
+      findsOneWidget,
+    );
+
+    await tester.enterText(find.byType(TextField), '');
+    await settle(tester);
+    // Only types that appear in the collection are offered.
+    expect(find.widgetWithText(PillChip, 'Fire'), findsOneWidget);
+    expect(find.widgetWithText(PillChip, 'Water'), findsNothing);
+    await tester.tap(find.widgetWithText(PillChip, 'Fire'));
+    await settle(tester);
+    expect(find.text('Bulbasaur'), findsNothing);
+    expect(find.text('Charmander'), findsOneWidget);
   });
 
   testWidgets('un-favoriting removes the card and persists', (tester) async {
-    await tester.pumpWidget(await _app(saved: ['3', '1']));
-    await _settle(tester);
+    await tester.pumpWidget(
+      await favorites(FakePokeApi(), saved: ['6', '1']),
+    );
+    await settle(tester);
 
     await tester.tap(find.byTooltip('Remove from favorites').first);
     await tester.pump();
 
-    expect(find.text('Venusaur'), findsNothing);
+    expect(find.text('Charizard'), findsNothing);
     expect(find.text('Bulbasaur'), findsOneWidget);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getStringList('favorite_pokemon_ids'), ['1']);
   });
 
-  testWidgets('shows error with retry when index fails', (tester) async {
-    await tester.pumpWidget(
-      await _app(saved: ['1'], api: (_) async => http.Response('', 500)),
-    );
-    await _settle(tester);
+  testWidgets('tapping a card opens details', (tester) async {
+    await tester.pumpWidget(await favorites(FakePokeApi(), saved: ['5']));
+    await settle(tester);
 
+    await tester.tap(find.text('Charmeleon'));
+    await settle(tester);
+    expect(find.text('details 5'), findsOneWidget);
+  });
+
+  testWidgets('error with retry when the list cannot load', (tester) async {
+    final api = FakePokeApi(failEverything: true);
+    await tester.pumpWidget(await favorites(api, saved: ['1']));
+    await settle(tester);
     expect(find.text('Retry'), findsOneWidget);
+
+    api.failEverything = false;
+    await tester.tap(find.text('Retry'));
+    await settle(tester);
+    expect(find.text('Bulbasaur'), findsOneWidget);
   });
 }

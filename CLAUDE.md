@@ -238,31 +238,33 @@ The sections above are the product and process rules. This section records what 
 
 ### Stack
 
-- State management: **Riverpod 3** (`flutter_riverpod`). Navigation: **go_router**, all routes in `lib/app/router/app_router.dart`.
-- HTTP: `http`. Images: `cached_network_image`. Local storage: `shared_preferences`, injected from `main()` via `sharedPreferencesProvider`.
+- State management: **Riverpod 3** (`flutter_riverpod`). Navigation: **go_router** with a `StatefulShellRoute` (4 tabs), routes in `lib/app/router/app_router.dart`.
+- HTTP: `http`. Images: `cached_network_image` (+ `flutter_cache_manager`). Local storage: `shared_preferences`, injected from `main()` via `sharedPreferencesProvider`.
+- Fonts: `google_fonts` (Fredoka headings, Nunito text, Geist Mono numerals). 3D: `model_viewer_plus`. Camera: `camera`.
 - Failed `FutureProvider`s set `retry: (_, _) => null` so errors show immediately with a manual Retry button.
+- Design source: the claude.ai/design project "Pokédex app development plan" (`Pokedex.dc.html`). Tokens live in `lib/app/theme/app_colors.dart` (`AppPalette`, read with `context.palette`).
 
 ### Implemented features and routes
 
 | Route | Screen | Notes |
 |---|---|---|
-| `/` | Home | Links to everything, settings icon |
-| `/pokedex` | Pokédex | Server pagination, name/number search over cached index, type chips |
-| `/pokemon/:id` | Details | Artwork, types, size, stats, evolution chain, favorite heart |
-| `/types` | Type Explorer | 18 orbs |
-| `/types/:name` | Type detail | Attack and defense charts |
+| `/` | Home (tab) | Hero header, search + suggestions, dual-type chips, recent, Surprise me |
+| `/pokedex` | Pokédex (tab) | Client-side filter over the full index: sort, generation, dual type |
+| `/favorites` | Favorites (tab) | Ids stored, names from the cached index, search + type chip |
+| `/settings` | Settings (tab) | Theme, animations, card effects, grid size, viewer mode, clear cache |
+| `/pokemon/:id` | Details | Trading card (flip/tilt/foil/ribbon), forms, tabs Overview/Stats/Evolution/Moves/Abilities, Artwork/Animated/3D |
+| `/types`, `/types/:name` | Type Explorer | Orbs, Attack/Defense, orbit + list views; `:name` opens a type |
 | `/types/matchup` | Type Matchup | Attacker vs 1–2 defender types. Declared before `/types/:name` on purpose |
-| `/favorites` | Favorites | Ids stored, names from cached index |
-| `/settings` | Settings | Theme mode, animations, grid density |
+| `/catch` | Catch game | Camera or practice field, ball throw, capture odds, Master Ball count |
 
-Not built yet: animated sprites, 3D viewer, trading-card view, flavor text, abilities, moves, generation filter, `assets/`, `integration_test/`, custom typography.
+Not built: type-specific particle effects, 3D camera reset / animation picker, `integration_test/`, bundled `assets/`.
 
 ### Layering rule used here
 
 - `core/`: app-agnostic technical code (HTTP client, error types, text helpers, `ErrorView`, prefs provider).
-- `shared/`: Pokémon-aware code used by two or more features (models, datasources, repositories, providers, `PokemonCard`, `PokemonGrid`, `TypeBadge`, favorites and settings state).
-- `features/<name>/`: screens, feature widgets, feature providers, optional `domain/` for pure logic (`TypeEffectivenessService`).
-- **A feature never imports another feature.** If two features need something, move it to `shared/`. This is why favorites state and the Pokémon repositories are under `shared/`, not `features/favorites/data/`.
+- `shared/`: Pokémon-aware code used by two or more features (models, datasources, repositories, providers, domain filtering, `PokemonCard`, `SliverPokemonGrid`, chips, `TypeOrb`, `TypeBadge`, favorites/settings/recent state).
+- `features/<name>/`: screens, feature widgets, feature providers, optional `domain/` for pure logic (`CardViewModel`, `TypeEffectivenessService`, `type_explorer_logic`, `capture_logic`).
+- **A feature never imports another feature.** If two features need something, move it to `shared/`. This is why favorites state and the Pokémon repositories are under `shared/`.
 - Screens never call `ApiClient` or `http` directly. New API call path: datasource method (raw JSON) -> model `fromJson` with fallbacks -> repository (parse, cache, wrap errors in `ParsingException`) -> provider -> screen.
 - Errors are `AppException` subtypes (`NetworkException`, `NotFoundException`, `ServerException`, `ParsingException`).
 
@@ -276,18 +278,18 @@ cmd.exe /c "C:\src\flutter\bin\flutter.bat test"
 cmd.exe /c "C:\src\flutter\bin\flutter.bat run -d <device-id>"
 ```
 
-Android device used for testing: Xiaomi `M2102J20SG` (MIUI). It rejects `adb shell input` taps unless "USB debugging (Security settings)" is enabled, so UI flows must be tapped by hand.
+Android device used for testing: Xiaomi `M2102J20SG` (MIUI). It rejects `adb shell input` taps unless "USB debugging (Security settings)" is enabled, so UI flows must be tapped by hand. Its `com.android.systemui` occasionally logs its own NPE; that is not this app.
 
 ### Testing conventions
 
-- Fixtures: trimmed PokéAPI JSON in `test/fixtures/`.
-- Repository and widget tests use `http` `MockClient` through `ApiClient(client: ...)`.
-- Widget tests must override **every** repository provider a screen touches (`pokemonRepositoryProvider`, `typeRepositoryProvider`, prefs via `test/helpers/prefs.dart`). Un-overridden providers hit real HTTP, which returns 400 in the test environment.
-- Last verified state: `flutter analyze` clean, 74 tests passing, debug APK installs on the test phone.
+- Fake PokéAPI: `test/helpers/fake_api.dart` (`FakePokeApi`, `testOverrides`) serves six Kanto Pokémon plus one Mega form from JSON builders; use it instead of hand-writing `MockClient` handlers. It sends UTF-8 like the real API.
+- Widget tests: `test/helpers/pump_app.dart` (`testApp`, `testRouterApp`, `overridesFor`, `settle`, `tapChip`, `useTallScreen`, `pumpUntilFound`). Animations are off by default there. Avoid `pumpAndSettle` (spinners never settle).
+- Always override **every** repository/prefs provider a screen touches (`testOverrides` does). Un-overridden providers hit real HTTP, which returns 400 in the test environment.
+- Lists are lazy: use `useTallScreen` or scroll to widgets that are off screen.
+- Last verified state: `flutter analyze` clean, 178 tests passing, debug APK builds.
 
 ### Known issues and open decisions
 
 - Application id is still the template `com.example.pokedex_app`; rename before any release.
-- The Pokémon index includes alternate forms (ids >= 10000); the type filter drops them, search does not.
-- Work lives on branch `refactor/architecture`; not merged to `main`.
-- Early commits on that branch carry `Co-Authored-By` trailers added before this file existed. Per the rule above they are left as-is unless the user asks for a history rewrite.
+- 3D models are fan-made and non-commercial (see README); keep them optional with fallbacks.
+- Early history on `main` was rewritten to remove co-author trailers (done at the user's request).

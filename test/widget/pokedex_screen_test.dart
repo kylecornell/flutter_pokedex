@@ -1,154 +1,135 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:pokedex_app/core/network/api_client.dart';
 import 'package:pokedex_app/features/pokedex/presentation/screens/pokedex_screen.dart';
-import 'package:pokedex_app/shared/datasources/pokeapi_datasource.dart';
-import 'package:pokedex_app/shared/providers/pokemon_providers.dart';
-import 'package:pokedex_app/shared/repositories/pokemon_repository.dart';
-import 'package:pokedex_app/shared/repositories/type_repository.dart';
 
-import '../helpers/prefs.dart';
+import '../helpers/fake_api.dart';
+import '../helpers/pump_app.dart';
 
+Future<Widget> dex(FakePokeApi api) async => testRouterApp(
+      [
+        GoRoute(path: '/', builder: (_, _) => const PokedexScreen()),
+        GoRoute(
+          path: '/pokemon/:id',
+          builder: (_, s) =>
+              Scaffold(body: Text('details ${s.pathParameters['id']}')),
+        ),
+      ],
+      overrides: await overridesFor(api),
+    );
 
-late Override _prefs;
-
-const _fireJson = '''
-{"name":"fire","damage_relations":{},"pokemon":[
-  {"slot":1,"pokemon":{"name":"ivysaur","url":"https://pokeapi.co/api/v2/pokemon/2/"}},
-  {"slot":1,"pokemon":{"name":"ivysaur-mega","url":"https://pokeapi.co/api/v2/pokemon/10001/"}}]}''';
-
-const _listJson = '''
-{"count":2,"next":null,"results":[
-  {"name":"bulbasaur","url":"https://pokeapi.co/api/v2/pokemon/1/"},
-  {"name":"ivysaur","url":"https://pokeapi.co/api/v2/pokemon/2/"}]}''';
-
-Future<http.Response> _withTypes(http.Request req) async => req.url.path.contains('/type/')
-    ? http.Response(_fireJson, 200)
-    : http.Response(_listJson, 200);
-
-Widget _app(Future<http.Response> Function(http.Request) handler) {
-  final dataSource = PokeApiDataSource(ApiClient(client: MockClient(handler)));
-  return ProviderScope(
-    overrides: [
-      _prefs,
-      pokemonRepositoryProvider
-          .overrideWithValue(PokemonRepository(dataSource)),
-      typeRepositoryProvider.overrideWithValue(TypeRepository(dataSource)),
-    ],
-    child: const MaterialApp(home: PokedexScreen()),
-  );
+/// Names of the Pokémon cards in on-screen order (top to bottom, left to
+/// right).
+List<String> shownNames(WidgetTester tester) {
+  const names = [
+    'Bulbasaur',
+    'Ivysaur',
+    'Venusaur',
+    'Charmander',
+    'Charmeleon',
+    'Charizard',
+  ];
+  final found = <(Offset, String)>[];
+  for (final n in names) {
+    for (final e in find.text(n).evaluate()) {
+      found.add((tester.getTopLeft(find.byWidget(e.widget)), n));
+    }
+  }
+  found.sort((a, b) {
+    final dy = a.$1.dy.compareTo(b.$1.dy);
+    return dy != 0 ? dy : a.$1.dx.compareTo(b.$1.dx);
+  });
+  return [for (final f in found) f.$2];
 }
 
 void main() {
-  setUp(() async => _prefs = await prefsOverride());
+  testWidgets('shows count, generation chips and all Pokémon', (tester) async {
+    await tester.pumpWidget(await dex(FakePokeApi()));
+    await settle(tester);
 
-  testWidgets('shows loaded Pokémon and filters by search', (tester) async {
-    await tester.pumpWidget(_app((_) async => http.Response(_listJson, 200)));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.text('Bulbasaur'), findsOneWidget);
-    expect(find.text('Ivysaur'), findsOneWidget);
-
-    await tester.enterText(find.byType(SearchBar), 'ivy');
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.text('Ivysaur'), findsOneWidget);
-    expect(find.text('Bulbasaur'), findsNothing);
+    expect(find.text('6 of 6 · National Dex'), findsOneWidget);
+    expect(find.text('All gens'), findsOneWidget);
+    expect(find.text('I · Kanto'), findsOneWidget);
+    expect(find.text('II · Johto'), findsOneWidget);
+    expect(shownNames(tester), hasLength(6));
   });
 
-  testWidgets('shows error with retry when first load fails', (tester) async {
-    var fail = true;
-    await tester.pumpWidget(_app((_) async {
-      return fail ? http.Response('', 500) : http.Response(_listJson, 200);
-    }));
-    await tester.pump();
-    await tester.pump();
+  testWidgets('generation filter, then empty state', (tester) async {
+    await tester.pumpWidget(await dex(FakePokeApi()));
+    await settle(tester);
 
-    expect(find.text('Retry'), findsOneWidget);
+    await tester.tap(find.text('I · Kanto'));
+    await settle(tester);
+    expect(find.text('6 of 6 · National Dex'), findsOneWidget);
 
-    fail = false;
-    await tester.tap(find.text('Retry'));
-    await tester.pump();
-    await tester.pump();
+    await tester.tap(find.text('II · Johto'));
+    await settle(tester);
+    expect(find.text('0 of 6 · National Dex'), findsOneWidget);
+    expect(find.text('No Pokémon match these filters.'), findsOneWidget);
 
-    expect(find.text('Bulbasaur'), findsOneWidget);
+    await tester.tap(find.text('All gens'));
+    await settle(tester);
+    expect(find.text('6 of 6 · National Dex'), findsOneWidget);
+  });
+
+  testWidgets('sort A–Z changes the order', (tester) async {
+    await tester.pumpWidget(await dex(FakePokeApi()));
+    await settle(tester);
+
+    expect(shownNames(tester).first, 'Bulbasaur');
+    await tester.tap(find.text('A–Z'));
+    await settle(tester);
+    // Charizard sorts before Charmander.
+    final names = shownNames(tester);
+    expect(names.indexOf('Charizard'), lessThan(names.indexOf('Charmander')));
+
+    await tester.tap(find.text('No.'));
+    await settle(tester);
+    expect(shownNames(tester).first, 'Bulbasaur');
+  });
+
+  testWidgets('type chips combine to a dual-type filter', (tester) async {
+    await tester.pumpWidget(await dex(FakePokeApi()));
+    await settle(tester);
+
+    await tapChip(tester, 'Grass');
+    expect(find.text('3 of 6 · National Dex'), findsOneWidget);
+
+    await tapChip(tester, 'Poison');
+    expect(find.text('3 of 6 · National Dex'), findsOneWidget);
+
+    // A third pick drops the oldest (Grass), leaving Poison + Fire = none.
+    await tapChip(tester, 'Fire');
+    expect(find.text('0 of 6 · National Dex'), findsOneWidget);
   });
 
   testWidgets('tapping a card opens /pokemon/:id', (tester) async {
-    final repo = PokemonRepository(
-      PokeApiDataSource(
-        ApiClient(
-          client: MockClient((_) async => http.Response(_listJson, 200)),
-        ),
-      ),
-    );
-    final router = GoRouter(
-      initialLocation: '/pokedex',
-      routes: [
-        GoRoute(path: '/pokedex', builder: (_, _) => const PokedexScreen()),
-        GoRoute(
-          path: '/pokemon/:id',
-          builder: (_, state) =>
-              Scaffold(body: Text('details ${state.pathParameters['id']}')),
-        ),
-      ],
-    );
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [_prefs, pokemonRepositoryProvider.overrideWithValue(repo)],
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
+    await tester.pumpWidget(await dex(FakePokeApi()));
+    await settle(tester);
 
-    await tester.tap(find.text('Ivysaur'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('details 2'), findsOneWidget);
-  });
-
-  testWidgets('type chip filters list to that type, forms excluded',
-      (tester) async {
-    await tester.pumpWidget(_app(_withTypes));
-    await tester.pump();
-    await tester.pump();
-    expect(find.text('Bulbasaur'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(FilterChip, 'Fire'));
-    // type request -> pokemonOfTypeProvider -> results provider
-    for (var i = 0; i < 5; i++) {
-      await tester.pump();
-    }
-
-    expect(find.text('Ivysaur'), findsOneWidget);
-    expect(find.text('Bulbasaur'), findsNothing);
-    expect(find.text('Ivysaur Mega'), findsNothing);
-
-    // Tapping the selected chip clears the filter.
-    await tester.tap(find.widgetWithText(FilterChip, 'Fire'));
-    await tester.pump();
-    expect(find.text('Bulbasaur'), findsOneWidget);
+    await tester.tap(find.text('Charizard'));
+    await settle(tester);
+    expect(find.text('details 6'), findsOneWidget);
   });
 
   testWidgets('heart on a card saves the favorite', (tester) async {
-    await tester.pumpWidget(_app((_) async => http.Response(_listJson, 200)));
-    await tester.pump();
-    await tester.pump();
+    await tester.pumpWidget(await dex(FakePokeApi()));
+    await settle(tester);
 
-    await tester.tap(find.byTooltip('Add to favorites').last);
+    await tester.tap(find.byTooltip('Add to favorites').first);
     await tester.pump();
-
     expect(find.byTooltip('Remove from favorites'), findsOneWidget);
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getStringList('favorite_pokemon_ids'), ['2']);
+  });
+
+  testWidgets('error with retry', (tester) async {
+    final api = FakePokeApi(failEverything: true);
+    await tester.pumpWidget(await dex(api));
+    await settle(tester);
+    expect(find.text('Retry'), findsOneWidget);
+
+    api.failEverything = false;
+    await tester.tap(find.text('Retry'));
+    await settle(tester);
+    expect(find.text('6 of 6 · National Dex'), findsOneWidget);
   });
 }

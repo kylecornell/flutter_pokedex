@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/text_format.dart';
 import '../../../../shared/models/pokemon_types.dart';
+import '../../../../shared/widgets/chips.dart';
 import '../../../../shared/widgets/type_badge.dart';
 
-/// Wrap of selectable type chips.
+/// Wrap of selectable type chips (all 18 types).
 class TypePicker extends StatelessWidget {
   const TypePicker({super.key, required this.selected, required this.onToggle});
 
@@ -15,14 +16,18 @@ class TypePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     return Wrap(
       spacing: 8,
-      runSpacing: 4,
+      runSpacing: 8,
       children: [
         for (final type in allPokemonTypes)
-          FilterChip(
-            label: Text(formatPokemonName(type)),
+          PillChip(
+            label: formatPokemonName(type),
             selected: selected.contains(type),
-            selectedColor: typeColor(type).withValues(alpha: 0.55),
-            onSelected: (_) => onToggle(type),
+            selectedBackground: typeColor(type),
+            selectedForeground: typeInk(type),
+            dotColor:
+                selected.contains(type) ? typeInk(type) : typeColor(type),
+            height: 36,
+            onTap: () => onToggle(type),
           ),
       ],
     );

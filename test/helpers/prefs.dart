@@ -8,3 +8,6 @@ Future<Override> prefsOverride([Map<String, Object> initial = const {}]) async {
   final prefs = await SharedPreferences.getInstance();
   return sharedPreferencesProvider.overrideWithValue(prefs);
 }
+
+/// The mock SharedPreferences instance created by the last [prefsOverride].
+Future<SharedPreferences> prefsOverrideValue() => SharedPreferences.getInstance();

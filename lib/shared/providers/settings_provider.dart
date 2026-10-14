@@ -24,6 +24,12 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> setGridDensity(GridDensity density) =>
       _update(state.copyWith(gridDensity: density));
 
+  Future<void> setCardEffects(bool enabled) =>
+      _update(state.copyWith(cardEffects: enabled));
+
+  Future<void> setViewerMode(ViewerMode mode) =>
+      _update(state.copyWith(viewerMode: mode));
+
   Future<void> _update(AppSettings next) {
     state = next;
     return ref.read(settingsDataSourceProvider).save(next);

@@ -18,3 +18,10 @@ final evolutionChainProvider = FutureProvider.family<EvolutionChain?, String>(
       ref.watch(pokemonRepositoryProvider).getEvolutionChain(speciesName),
   retry: (_, _) => null,
 );
+
+/// Short effect text of an ability (`overgrow`).
+final abilityDescriptionProvider = FutureProvider.family<String, String>(
+  (ref, name) =>
+      ref.watch(pokemonRepositoryProvider).getAbilityDescription(name),
+  retry: (_, _) => null,
+);

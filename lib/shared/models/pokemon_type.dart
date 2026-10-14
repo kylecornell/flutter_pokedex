@@ -1,5 +1,15 @@
 import 'pokemon_summary.dart';
 
+/// A Pokémon that has a type, and whether it is its first or second type.
+class TypeMember {
+  const TypeMember({required this.pokemon, required this.slot});
+
+  final PokemonSummary pokemon;
+
+  /// 1 = primary type, 2 = secondary type.
+  final int slot;
+}
+
 /// One type with its damage relations, from `GET /type/{name}`.
 ///
 /// "To" = this type attacking, "from" = this type defending.
@@ -12,7 +22,7 @@ class PokemonType {
     this.doubleDamageFrom = const {},
     this.halfDamageFrom = const {},
     this.noDamageFrom = const {},
-    this.pokemon = const [],
+    this.members = const [],
   });
 
   factory PokemonType.fromJson(Map<String, dynamic> json) {
@@ -22,11 +32,15 @@ class PokemonType {
         .map((e) => (e as Map<String, dynamic>)['name'] as String)
         .toSet();
 
-    final members = (json['pokemon'] as List<dynamic>? ?? [])
-        .map((e) => PokemonSummary.fromJson(
-              (e as Map<String, dynamic>)['pokemon'] as Map<String, dynamic>,
-            ))
-        .toList();
+    final members = (json['pokemon'] as List<dynamic>? ?? []).map((e) {
+      final entry = e as Map<String, dynamic>;
+      return TypeMember(
+        pokemon: PokemonSummary.fromJson(
+          entry['pokemon'] as Map<String, dynamic>,
+        ),
+        slot: entry['slot'] as int? ?? 1,
+      );
+    }).toList();
 
     return PokemonType(
       name: json['name'] as String? ?? 'unknown',
@@ -36,7 +50,7 @@ class PokemonType {
       doubleDamageFrom: names('double_damage_from'),
       halfDamageFrom: names('half_damage_from'),
       noDamageFrom: names('no_damage_from'),
-      pokemon: members,
+      members: members,
     );
   }
 
@@ -48,8 +62,10 @@ class PokemonType {
   final Set<String> halfDamageFrom;
   final Set<String> noDamageFrom;
 
-  /// Every Pokémon (and form) of this type.
-  final List<PokemonSummary> pokemon;
+  /// Every Pokémon (and form) of this type, with which type slot it fills.
+  final List<TypeMember> members;
+
+  List<PokemonSummary> get pokemon => [for (final m in members) m.pokemon];
 
   /// Damage multiplier when this type attacks a single [defender] type.
   double attackMultiplierAgainst(String defender) {

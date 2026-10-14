@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../shared/widgets/type_badge.dart';
-import '../../domain/services/type_effectiveness_service.dart';
+import '../../domain/type_effectiveness_service.dart';
 
 /// Card listing types grouped by multiplier (4x, 2x, 1/2x, ...).
 /// Neutral (1x) matchups are left out.

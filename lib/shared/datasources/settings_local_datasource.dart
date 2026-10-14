@@ -11,6 +11,8 @@ class SettingsLocalDataSource {
   static const _themeKey = 'settings_theme_mode';
   static const _animationsKey = 'settings_animations';
   static const _densityKey = 'settings_grid_density';
+  static const _effectsKey = 'settings_card_effects';
+  static const _viewerKey = 'settings_viewer_mode';
 
   final SharedPreferences _prefs;
 
@@ -24,6 +26,9 @@ class SettingsLocalDataSource {
       gridDensity:
           GridDensity.values.asNameMap()[_prefs.getString(_densityKey)] ??
               defaults.gridDensity,
+      cardEffects: _prefs.getBool(_effectsKey) ?? defaults.cardEffects,
+      viewerMode: ViewerMode.values.asNameMap()[_prefs.getString(_viewerKey)] ??
+          defaults.viewerMode,
     );
   }
 
@@ -31,5 +36,7 @@ class SettingsLocalDataSource {
     await _prefs.setString(_themeKey, settings.themeMode.name);
     await _prefs.setBool(_animationsKey, settings.animationsEnabled);
     await _prefs.setString(_densityKey, settings.gridDensity.name);
+    await _prefs.setBool(_effectsKey, settings.cardEffects);
+    await _prefs.setString(_viewerKey, settings.viewerMode.name);
   }
 }

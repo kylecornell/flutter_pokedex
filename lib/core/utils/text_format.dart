@@ -10,6 +10,16 @@ String formatPokemonName(String apiName) {
 /// `25` -> `#0025`
 String formatDexNumber(int id) => '#${id.toString().padLeft(4, '0')}';
 
-/// `special-attack` -> `Special Attack`, `hp` -> `HP`
-String formatStatName(String apiName) =>
-    apiName == 'hp' ? 'HP' : formatPokemonName(apiName);
+/// `special-attack` -> `Sp. Atk`, `hp` -> `HP`, `speed` -> `Speed`
+String formatStatName(String apiName) => switch (apiName) {
+      'hp' => 'HP',
+      'special-attack' => 'Sp. Atk',
+      'special-defense' => 'Sp. Def',
+      _ => formatPokemonName(apiName),
+    };
+
+/// `1025` -> `1,025`
+String formatCount(int n) => n.toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => ',',
+    );

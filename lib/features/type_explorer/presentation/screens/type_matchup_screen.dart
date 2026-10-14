@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/text_format.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../providers/matchup_provider.dart';
+import '../../../../shared/widgets/pokedex_header.dart';
 import '../widgets/effectiveness_section.dart';
 import '../widgets/type_picker.dart';
 
@@ -20,17 +22,26 @@ class TypeMatchupScreen extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Type Matchup'),
-        actions: [
-          IconButton(
-            tooltip: 'Clear',
-            icon: const Icon(Icons.restart_alt),
-            onPressed: notifier.clear,
+      body: Column(
+        children: [
+          PokedexHeader(
+            accent: HeaderAccent.yellow,
+            title: 'Type Matchup',
+            subtitle: 'Attacker vs one or two defender types',
+            onBack: () => context.canPop() ? context.pop() : context.go('/'),
+            actions: [
+              HeaderIconButton(
+                accent: HeaderAccent.yellow,
+                tooltip: 'Clear',
+                icon: Icons.restart_alt,
+                onPressed: notifier.clear,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: ListView(
+          Expanded(
+            child: SafeArea(
+              top: false,
+              child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text('Attacker', style: textTheme.titleMedium),
@@ -90,6 +101,10 @@ class TypeMatchupScreen extends ConsumerWidget {
                 );
               },
             ),
+        ],
+              ),
+            ),
+          ),
         ],
       ),
     );

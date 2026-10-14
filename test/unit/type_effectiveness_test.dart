@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pokedex_app/features/type_explorer/domain/services/type_effectiveness_service.dart';
+import 'package:pokedex_app/features/type_explorer/domain/type_effectiveness_service.dart';
 import 'package:pokedex_app/shared/models/pokemon_type.dart';
 
 PokemonType fixtureType(String name) => PokemonType.fromJson(

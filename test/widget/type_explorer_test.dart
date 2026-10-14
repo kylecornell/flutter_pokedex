@@ -1,110 +1,203 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:pokedex_app/core/network/api_client.dart';
-import 'package:pokedex_app/features/type_explorer/presentation/screens/type_detail_screen.dart';
 import 'package:pokedex_app/features/type_explorer/presentation/screens/type_explorer_screen.dart';
 import 'package:pokedex_app/features/type_explorer/presentation/screens/type_matchup_screen.dart';
-import 'package:pokedex_app/shared/datasources/pokeapi_datasource.dart';
-import 'package:pokedex_app/shared/providers/pokemon_providers.dart';
-import 'package:pokedex_app/shared/repositories/type_repository.dart';
+import 'package:pokedex_app/features/type_explorer/presentation/widgets/orbit_view.dart';
 
-String _fixture(String n) => File('test/fixtures/$n').readAsStringSync();
+import '../helpers/fake_api.dart';
+import '../helpers/pump_app.dart';
 
-Future<http.Response> _api(http.Request req) async => switch (req.url.path) {
-      '/api/v2/type/fire' => http.Response(_fixture('type_fire.json'), 200),
-      '/api/v2/type/ghost' => http.Response(_fixture('type_ghost.json'), 200),
-      _ => http.Response('', 404),
-    };
-
-Widget _app(Widget home, {Future<http.Response> Function(http.Request)? api}) {
-  final repo = TypeRepository(
-    PokeApiDataSource(ApiClient(client: MockClient(api ?? _api))),
-  );
-  final router = GoRouter(
-    routes: [
-      GoRoute(path: '/', builder: (_, _) => home),
-      GoRoute(path: '/types/matchup', builder: (_, _) => const TypeMatchupScreen()),
+Future<Widget> explorer(FakePokeApi api, {String? initial}) async {
+  return testRouterApp(
+    [
       GoRoute(
-        path: '/types/:name',
-        builder: (_, s) => TypeDetailScreen(typeName: s.pathParameters['name']!),
+        path: '/',
+        builder: (_, _) => TypeExplorerScreen(initialType: initial),
+      ),
+      GoRoute(
+        path: '/types/matchup',
+        builder: (_, _) => const TypeMatchupScreen(),
       ),
     ],
+    overrides: await overridesFor(api),
   );
-  return ProviderScope(
-    overrides: [typeRepositoryProvider.overrideWithValue(repo)],
-    child: MaterialApp.router(routerConfig: router),
-  );
-}
-
-Future<void> _settle(WidgetTester tester) async {
-  for (var i = 0; i < 5; i++) {
-    await tester.pump();
-  }
 }
 
 void main() {
-  testWidgets('explorer shows type orbs and opens a type', (tester) async {
-    await tester.pumpWidget(_app(const TypeExplorerScreen()));
-    await tester.pump();
+  testWidgets('grid shows all 18 types, selecting one opens its header',
+      (tester) async {
+    useTallScreen(tester);
+    useTallScreen(tester);
+    await tester.pumpWidget(await explorer(FakePokeApi()));
+    await settle(tester);
 
-    expect(find.text('Fire'), findsOneWidget);
-    expect(find.text('Matchup calculator'), findsOneWidget);
+    expect(find.text('18 types · tap one to explore'), findsOneWidget);
+    expect(find.text('ALL 18 TYPES · TAP TO EXPLORE'), findsOneWidget);
+    expect(find.text('Normal'), findsOneWidget);
 
     await tester.tap(find.text('Fire'));
-    await tester.pumpAndSettle();
-    await _settle(tester);
+    await settle(tester);
 
     expect(find.text('Fire type'), findsOneWidget);
-    expect(find.text('When attacking'), findsOneWidget);
-  });
-
-  testWidgets('type detail groups attack and defense multipliers',
-      (tester) async {
-    await tester.pumpWidget(_app(const TypeDetailScreen(typeName: 'fire')));
-    await _settle(tester);
-
-    expect(find.text('When attacking'), findsOneWidget);
-    expect(find.text('2×'), findsNWidgets(2)); // attack + defense sections
-    expect(find.text('½×'), findsNWidgets(2));
-    // Fire resists/is weak to listed types appear as badges.
-    expect(find.text('Grass'), findsWidgets);
-  });
-
-  testWidgets('type detail shows retry on failure', (tester) async {
-    await tester.pumpWidget(
-      _app(
-        const TypeDetailScreen(typeName: 'fire'),
-        api: (_) async => http.Response('', 500),
-      ),
+    expect(
+      find.textContaining('powerful flame-based attacks'),
+      findsOneWidget,
     );
-    await _settle(tester);
-
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('FIRE ATTACKING · TAP A TYPE'), findsOneWidget);
+    expect(find.text('Damage Fire moves deal to each type.'), findsOneWidget);
+    // Orbit view is the default.
+    expect(find.byType(OrbitView), findsOneWidget);
   });
 
-  testWidgets('matchup screen computes attacker vs dual defender',
+  testWidgets('attack grid badges show multipliers; neutral types dim',
       (tester) async {
-    await tester.pumpWidget(_app(const TypeMatchupScreen()));
-    await tester.pump();
+    useTallScreen(tester);
+    useTallScreen(tester);
+    await tester.pumpWidget(await explorer(FakePokeApi(), initial: 'fire'));
+    await settle(tester);
 
-    expect(find.text('Select a defender type to see matchups.'), findsOneWidget);
-
-    // Same labels appear in attacker and defender pickers: first = attacker.
-    await tester.tap(find.text('Ghost').first);
-    await tester.pump();
-    await tester.tap(find.text('Ghost').last);
-    await tester.pump();
-    await tester.tap(find.text('Fire').last);
-    await _settle(tester);
-
-    expect(find.text('Ghost attacking Ghost/Fire'), findsOneWidget);
+    // Fire is 2x vs Grass and 0.5x vs Water; badges appear on the grid.
     expect(find.text('2×'), findsWidgets);
-    expect(find.text('Damage taken by Ghost/Fire'), findsOneWidget);
+    expect(find.text('0.5×'), findsWidgets);
+  });
+
+  testWidgets('defense mode flips the meaning', (tester) async {
+    useTallScreen(tester);
+    await tester.pumpWidget(await explorer(FakePokeApi(), initial: 'fire'));
+    await settle(tester);
+
+    await tester.tap(find.text('Defense'));
+    await settle(tester);
+    expect(find.text('FIRE DEFENDING · TAP A TYPE'), findsOneWidget);
+    expect(
+      find.text('Damage a Fire Pokémon takes from each type.'),
+      findsOneWidget,
+    );
+    expect(find.text('Weakness'), findsOneWidget); // legend
+  });
+
+  testWidgets('list view groups types by multiplier', (tester) async {
+    useTallScreen(tester);
+    await tester.pumpWidget(await explorer(FakePokeApi(), initial: 'fire'));
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('List view'));
+    await settle(tester);
+
+    expect(find.text('Super effective'), findsOneWidget);
+    expect(find.text('Not very effective'), findsOneWidget);
+    expect(find.text('No effect'), findsOneWidget);
+    expect(find.text('Normal damage'), findsOneWidget);
+    expect(find.text('None'), findsOneWidget); // fire has no immunities to hit
+    expect(find.text('4 types'), findsWidgets); // grass, bug, ice, steel
+  });
+
+  testWidgets('orbit: focusing an orb explains the matchup and Open selects it',
+      (tester) async {
+    useTallScreen(tester);
+    useTallScreen(tester);
+    await tester.pumpWidget(await explorer(FakePokeApi(), initial: 'fire'));
+    await settle(tester);
+
+    expect(find.text('Tap an outer orb to see the matchup.'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel(RegExp('^Grass, Super effective')));
+    await settle(tester);
+    expect(
+      find.text('Fire attacks deal 2× damage to Grass Pokémon.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Open'));
+    await settle(tester);
+    expect(find.text('Grass type'), findsOneWidget);
+  });
+
+  testWidgets('Clear returns to the full grid', (tester) async {
+    useTallScreen(tester);
+    await tester.pumpWidget(await explorer(FakePokeApi(), initial: 'ghost'));
+    await settle(tester);
+    expect(find.text('Ghost type'), findsOneWidget);
+
+    await tester.tap(find.text('Clear'));
+    await settle(tester);
+    expect(find.text('Ghost type'), findsNothing);
+    expect(find.text('ALL 18 TYPES · TAP TO EXPLORE'), findsOneWidget);
+  });
+
+  testWidgets('unknown initial type is ignored', (tester) async {
+    useTallScreen(tester);
+    await tester.pumpWidget(await explorer(FakePokeApi(), initial: 'cosmic'));
+    await settle(tester);
+    expect(find.text('ALL 18 TYPES · TAP TO EXPLORE'), findsOneWidget);
+  });
+
+  testWidgets('shows an error when the type cannot load', (tester) async {
+    useTallScreen(tester);
+    await tester.pumpWidget(
+      await explorer(FakePokeApi(failEverything: true), initial: 'fire'),
+    );
+    await settle(tester);
+    expect(find.textContaining('Server error'), findsOneWidget);
+  });
+
+  testWidgets('matchup calculator link opens the matchup screen',
+      (tester) async {
+    useTallScreen(tester);
+    useTallScreen(tester);
+    await tester.pumpWidget(await explorer(FakePokeApi()));
+    await settle(tester);
+
+    await tester.tap(find.text('Matchup calculator'));
+    await settle(tester);
+    expect(find.text('Type Matchup'), findsOneWidget);
+  });
+
+  group('matchup screen', () {
+    Future<Widget> matchup(FakePokeApi api) async => testApp(
+          const TypeMatchupScreen(),
+          overrides: await overridesFor(api),
+        );
+
+    testWidgets('computes attacker vs a dual-type defender', (tester) async {
+    useTallScreen(tester);
+      await tester.pumpWidget(await matchup(FakePokeApi()));
+      await settle(tester);
+
+      expect(
+        find.text('Select a defender type to see matchups.'),
+        findsOneWidget,
+      );
+
+      // Same labels appear in both pickers: first = attacker, last = defender.
+      await tester.tap(find.text('Ghost').first);
+      await tester.pump();
+      await tester.tap(find.text('Ghost').last);
+      await tester.pump();
+      await tester.tap(find.text('Fire').last);
+      await settle(tester);
+
+      expect(find.text('Ghost attacking Ghost/Fire'), findsOneWidget);
+      expect(find.text('2×'), findsWidgets);
+      expect(find.text('Damage taken by Ghost/Fire'), findsOneWidget);
+    });
+
+    testWidgets('clear resets the selection', (tester) async {
+    useTallScreen(tester);
+      await tester.pumpWidget(await matchup(FakePokeApi()));
+      await settle(tester);
+
+      await tester.tap(find.text('Fire').last);
+      await settle(tester);
+      expect(find.text('Damage taken by Fire'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Clear'));
+      await settle(tester);
+      expect(
+        find.text('Select a defender type to see matchups.'),
+        findsOneWidget,
+      );
+    });
   });
 }

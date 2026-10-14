@@ -2,15 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/text_format.dart';
 import '../../../../core/widgets/error_view.dart';
+import '../../../../shared/domain/pokemon_filtering.dart';
+import '../../../../shared/models/generation.dart';
 import '../../../../shared/models/pokemon_summary.dart';
 import '../../../../shared/providers/pokemon_providers.dart';
-import '../../../../shared/widgets/pokemon_grid.dart';
 import '../../../../shared/providers/type_providers.dart';
-import '../providers/pokedex_list_provider.dart';
-import '../providers/pokedex_search_provider.dart';
-import '../widgets/type_filter_bar.dart';
+import '../../../../shared/widgets/chips.dart';
+import '../../../../shared/widgets/lazy_scroll.dart';
+import '../../../../shared/widgets/pokedex_header.dart';
+import '../../../../shared/widgets/pokemon_grid.dart';
+import '../providers/dex_filter_provider.dart';
 
+/// The National Dex: sort, generation and (dual) type filters.
 class PokedexScreen extends ConsumerStatefulWidget {
   const PokedexScreen({super.key});
 
@@ -19,132 +25,179 @@ class PokedexScreen extends ConsumerStatefulWidget {
 }
 
 class _PokedexScreenState extends ConsumerState<PokedexScreen> {
-  // Local widget state: scroll position and text field contents.
-  final _scrollController = ScrollController();
-  final _searchController = TextEditingController();
+  late final LazyReveal _reveal;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
+    _reveal = LazyReveal(step: 30, onChanged: () => setState(() {}));
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
-    _searchController.dispose();
+    _reveal.dispose();
     super.dispose();
-  }
-
-  void _onScroll() {
-    final position = _scrollController.position;
-    final nearBottom = position.pixels >= position.maxScrollExtent - 400;
-    final state = ref.read(pokedexListProvider);
-    // Skip while an error is showing so we don't hammer the API; the Retry
-    // button reloads explicitly.
-    if (nearBottom && state.error == null) {
-      ref.read(pokedexListProvider.notifier).loadNextPage();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final query = ref.watch(pokedexSearchQueryProvider);
-    final typeFilter = ref.watch(pokedexTypeFilterProvider);
+    final p = context.palette;
+    final filter = ref.watch(dexFilterProvider);
+    final notifier = ref.read(dexFilterProvider.notifier);
+    final index = ref.watch(pokemonIndexProvider);
+    final typeIndex = ref.watch(typeIndexProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Pokédex')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: SearchBar(
-              controller: _searchController,
-              hintText: 'Search by name or number',
-              leading: const Icon(Icons.search),
-              trailing: [
-                if (query.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _searchController.clear();
-                      ref.read(pokedexSearchQueryProvider.notifier).set('');
-                    },
-                  ),
+    final all = index.value ?? const <PokemonSummary>[];
+    final results = filterPokemon(
+      all,
+      types: filter.types,
+      typeIndex: typeIndex.value ?? const {},
+      generationIndex: filter.generationIndex,
+      sort: filter.sort,
+    );
+    _reveal.total = results.length;
+    final shown = results.take(_reveal.visible).toList();
+
+    final count = index.hasValue
+        ? '${formatCount(results.length)} of ${formatCount(all.length)} · National Dex'
+        : 'Loading…';
+
+    return Material(
+      type: MaterialType.transparency,
+      child: CustomScrollView(
+        controller: _reveal.controller,
+        slivers: [
+          SliverToBoxAdapter(
+            child: PokedexHeader(
+              accent: HeaderAccent.green,
+              title: 'Pokédex',
+              subtitle: count,
+              actions: [
+                SegmentedPill<PokemonSort>(
+                  expand: false,
+                  height: 32,
+                  options: const {
+                    PokemonSort.number: 'No.',
+                    PokemonSort.name: 'A–Z',
+                  },
+                  value: filter.sort,
+                  onChanged: (s) {
+                    _reveal.reset();
+                    notifier.setSort(s);
+                  },
+                ),
               ],
-              onChanged: ref.read(pokedexSearchQueryProvider.notifier).set,
             ),
           ),
-          TypeFilterBar(
-            selected: typeFilter,
-            onSelected: ref.read(pokedexTypeFilterProvider.notifier).select,
+          SliverPadding(
+            padding: const EdgeInsets.only(top: 14),
+            sliver: SliverToBoxAdapter(
+              child: _Filters(
+                filter: filter,
+                onGeneration: (g) {
+                  _reveal.reset();
+                  notifier.setGeneration(g);
+                },
+                onTypes: (t) {
+                  _reveal.reset();
+                  notifier.setTypes(t);
+                },
+              ),
+            ),
           ),
-          Expanded(
-            child: query.trim().isEmpty && typeFilter == null
-                ? _buildBrowse()
-                : _buildSearch(),
-          ),
+          if (index.hasError && !index.hasValue)
+            SliverToBoxAdapter(
+              child: ErrorView(
+                error: index.error!,
+                onRetry: () => ref.invalidate(pokemonIndexProvider),
+              ),
+            )
+          else if (index.hasValue && results.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Text(
+                  'No Pokémon match these filters.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: p.mutedForeground),
+                ),
+              ),
+            )
+          else ...[
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+              sliver: SliverPokemonGrid(
+                items: shown,
+                onTap: (s) => context.push('/pokemon/${s.id}'),
+              ),
+            ),
+            if (results.length > shown.length)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'Scroll for more',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: p.mutedForeground),
+                  ),
+                ),
+              ),
+          ],
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
   }
+}
 
-  void _openDetails(PokemonSummary pokemon) =>
-      context.push('/pokemon/${pokemon.id}');
+class _Filters extends StatelessWidget {
+  const _Filters({
+    required this.filter,
+    required this.onGeneration,
+    required this.onTypes,
+  });
 
-  Widget _buildBrowse() {
-    final state = ref.watch(pokedexListProvider);
-    final notifier = ref.read(pokedexListProvider.notifier);
+  final DexFilter filter;
+  final ValueChanged<int> onGeneration;
+  final ValueChanged<List<String>> onTypes;
 
-    if (state.items.isEmpty) {
-      if (state.error != null) {
-        return ErrorView(error: state.error!, onRetry: notifier.loadNextPage);
-      }
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    Widget? footer;
-    if (state.error != null) {
-      footer = Padding(
-        padding: const EdgeInsets.all(16),
-        child: Center(
-          child: TextButton(
-            onPressed: notifier.loadNextPage,
-            child: Text('${state.error!.message} Tap to retry.'),
-          ),
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ChipScroller(
+          height: 32,
+          spacing: 6,
+          children: [
+            PillChip(
+              label: 'All gens',
+              selected: filter.generationIndex < 0,
+              height: 32,
+              radius: 9,
+              fontSize: 12,
+              onTap: () => onGeneration(-1),
+            ),
+            for (final (i, g) in pokemonGenerations.indexed)
+              PillChip(
+                label: '${g.roman} · ${g.region}',
+                selected: filter.generationIndex == i,
+                height: 32,
+                radius: 9,
+                fontSize: 12,
+                onTap: () => onGeneration(i),
+              ),
+          ],
         ),
-      );
-    } else if (state.hasMore) {
-      footer = const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return PokemonGrid(
-      items: state.items,
-      controller: _scrollController,
-      footer: footer,
-      onTap: _openDetails,
-    );
-  }
-
-  Widget _buildSearch() {
-    final results = ref.watch(pokedexSearchResultsProvider);
-    return results.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => ErrorView(
-        error: e,
-        onRetry: () {
-          final type = ref.read(pokedexTypeFilterProvider);
-          ref.invalidate(
-            type == null ? pokemonIndexProvider : pokemonTypeProvider(type),
-          );
-        },
-      ),
-      data: (items) => items.isEmpty
-          ? const Center(child: Text('No Pokémon found.'))
-          : PokemonGrid(items: items, onTap: _openDetails),
+        const SizedBox(height: 8),
+        TypeChipRow(
+          selected: filter.types,
+          onChanged: onTypes,
+          height: 32,
+          fontSize: 12,
+        ),
+      ],
     );
   }
 }
