@@ -1,0 +1,10 @@
+{
+  "id": 4, "name": "charmander", "height": 6, "weight": 85,
+  "species": {"name": "charmander", "url": "https://pokeapi.co/api/v2/pokemon-species/4/"},
+  "types": [{"slot": 1, "type": {"name": "fire"}}],
+  "stats": [
+    {"base_stat": 39, "stat": {"name": "hp"}},
+    {"base_stat": 60, "stat": {"name": "special-attack"}}
+  ],
+  "sprites": {"other": {"official-artwork": {"front_default": "https://example.com/4.png"}}}
+}

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/error_view.dart';
+import '../../../../shared/models/pokemon_summary.dart';
 import '../providers/pokedex_list_provider.dart';
 import '../providers/pokedex_search_provider.dart';
 import '../widgets/pokemon_grid.dart';
@@ -77,6 +79,9 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
     );
   }
 
+  void _openDetails(PokemonSummary pokemon) =>
+      context.push('/pokemon/${pokemon.id}');
+
   Widget _buildBrowse() {
     final state = ref.watch(pokedexListProvider);
     final notifier = ref.read(pokedexListProvider.notifier);
@@ -110,6 +115,7 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
       items: state.items,
       controller: _scrollController,
       footer: footer,
+      onTap: _openDetails,
     );
   }
 
@@ -123,7 +129,7 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
       ),
       data: (items) => items.isEmpty
           ? const Center(child: Text('No Pokémon found.'))
-          : PokemonGrid(items: items),
+          : PokemonGrid(items: items, onTap: _openDetails),
     );
   }
 }

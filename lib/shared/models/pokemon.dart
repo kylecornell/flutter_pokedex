@@ -19,6 +19,7 @@ class Pokemon {
   const Pokemon({
     required this.id,
     required this.name,
+    required this.speciesName,
     required this.types,
     required this.heightDm,
     required this.weightHg,
@@ -30,6 +31,7 @@ class Pokemon {
   /// Every other field falls back to a safe default.
   factory Pokemon.fromJson(Map<String, dynamic> json) {
     final id = json['id'] as int;
+    final name = json['name'] as String? ?? 'unknown';
 
     final types = <String>[];
     for (final entry in (json['types'] as List<dynamic>? ?? const [])) {
@@ -51,7 +53,11 @@ class Pokemon {
 
     return Pokemon(
       id: id,
-      name: json['name'] as String? ?? 'unknown',
+      name: name,
+      // Alternate forms (id > 10000) share their base species' evolution data.
+      speciesName: (json['species'] as Map<String, dynamic>?)?['name']
+              as String? ??
+          name,
       types: types,
       heightDm: json['height'] as int? ?? 0,
       weightHg: json['weight'] as int? ?? 0,
@@ -66,6 +72,9 @@ class Pokemon {
 
   final int id;
   final String name;
+
+  /// Name used by `/pokemon-species/{name}`; differs from [name] for forms.
+  final String speciesName;
   final List<String> types;
 
   /// Decimetres, as PokéAPI returns it.

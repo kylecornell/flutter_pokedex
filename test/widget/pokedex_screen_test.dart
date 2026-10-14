@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pokedex_app/core/network/api_client.dart';
@@ -57,5 +58,39 @@ void main() {
     await tester.pump();
 
     expect(find.text('Bulbasaur'), findsOneWidget);
+  });
+
+  testWidgets('tapping a card opens /pokemon/:id', (tester) async {
+    final repo = PokemonRepository(
+      PokeApiDataSource(
+        ApiClient(
+          client: MockClient((_) async => http.Response(_listJson, 200)),
+        ),
+      ),
+    );
+    final router = GoRouter(
+      initialLocation: '/pokedex',
+      routes: [
+        GoRoute(path: '/pokedex', builder: (_, _) => const PokedexScreen()),
+        GoRoute(
+          path: '/pokemon/:id',
+          builder: (_, state) =>
+              Scaffold(body: Text('details ${state.pathParameters['id']}')),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [pokemonRepositoryProvider.overrideWithValue(repo)],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Ivysaur'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('details 2'), findsOneWidget);
   });
 }

@@ -9,3 +9,7 @@ String formatPokemonName(String apiName) {
 
 /// `25` -> `#0025`
 String formatDexNumber(int id) => '#${id.toString().padLeft(4, '0')}';
+
+/// `special-attack` -> `Special Attack`, `hp` -> `HP`
+String formatStatName(String apiName) =>
+    apiName == 'hp' ? 'HP' : formatPokemonName(apiName);

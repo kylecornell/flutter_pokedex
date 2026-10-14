@@ -74,4 +74,37 @@ void main() {
     final repo = repoWith((_) async => http.Response('{"name":"x"}', 200));
     expect(repo.getPokemon('1'), throwsA(isA<ParsingException>()));
   });
+
+  group('getEvolutionChain', () {
+    test('follows species -> chain, parses stages and caches', () async {
+      final paths = <String>[];
+      final repo = repoWith((req) async {
+        paths.add(req.url.path);
+        return switch (req.url.path) {
+          '/api/v2/pokemon-species/charmander' =>
+            http.Response(fixtureText('pokemon_species_charmander.json'), 200),
+          '/api/v2/evolution-chain/2' =>
+            http.Response(fixtureText('evolution_chain_charmander.json'), 200),
+          _ => http.Response('', 404),
+        };
+      });
+
+      final chain = await repo.getEvolutionChain('Charmander');
+      expect(chain!.stages, hasLength(3));
+      await repo.getEvolutionChain('charmander');
+      expect(paths, hasLength(2));
+    });
+
+    test('species without chain -> null', () async {
+      final repo = repoWith(
+        (_) async => http.Response('{"evolution_chain": null}', 200),
+      );
+      expect(await repo.getEvolutionChain('missingno'), isNull);
+    });
+
+    test('unknown species -> NotFoundException', () {
+      final repo = repoWith((_) async => http.Response('', 404));
+      expect(repo.getEvolutionChain('x'), throwsA(isA<NotFoundException>()));
+    });
+  });
 }

@@ -18,6 +18,7 @@ final pokedexSearchQueryProvider =
 /// search endpoint).
 final pokemonIndexProvider = FutureProvider<List<PokemonSummary>>(
   (ref) => ref.watch(pokemonRepositoryProvider).getIndex(),
+  retry: (_, _) => null, // show errors immediately; user retries manually
 );
 
 /// Matches by name substring or exact Pokédex number (`25` or `#25`).

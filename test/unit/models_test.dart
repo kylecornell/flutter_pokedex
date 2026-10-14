@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pokedex_app/shared/models/evolution_chain.dart';
 import 'package:pokedex_app/shared/models/pokemon.dart';
 import 'package:pokedex_app/shared/models/pokemon_summary.dart';
 
@@ -10,6 +11,8 @@ Map<String, dynamic> fixture(String name) =>
         as Map<String, dynamic>;
 
 void main() {
+  evolutionTests();
+
   group('Pokemon.fromJson', () {
     test('parses a full response', () {
       final p = Pokemon.fromJson(fixture('pokemon_pikachu.json'));
@@ -52,5 +55,63 @@ void main() {
       expect(page.totalCount, 1350);
       expect(page.hasNext, isTrue);
     });
+  });
+}
+
+void evolutionTests() {
+  group('EvolutionChain', () {
+    test('linear chain -> one species per stage', () {
+      final chain =
+          EvolutionChain.fromJson(fixture('evolution_chain_charmander.json'));
+      final stages = chain.stages;
+      expect(stages.map((s) => s.map((p) => p.name).toList()), [
+        ['charmander'],
+        ['charmeleon'],
+        ['charizard'],
+      ]);
+      expect(stages.last.single.id, 6);
+    });
+
+    test('branching chain groups siblings in one stage', () {
+      final chain = EvolutionChain.fromJson({
+        'chain': {
+          'species': {'name': 'eevee', 'url': 'https://x/pokemon-species/133/'},
+          'evolves_to': [
+            {
+              'species': {'name': 'vaporeon', 'url': 'https://x/pokemon-species/134/'},
+              'evolves_to': [],
+            },
+            {
+              'species': {'name': 'jolteon', 'url': 'https://x/pokemon-species/135/'},
+              'evolves_to': [],
+            },
+          ],
+        },
+      });
+      expect(chain.stages.map((s) => s.length), [1, 2]);
+    });
+
+    test('single species -> one stage', () {
+      final chain = EvolutionChain.fromJson({
+        'chain': {
+          'species': {'name': 'tauros', 'url': 'https://x/pokemon-species/128/'},
+          'evolves_to': [],
+        },
+      });
+      expect(chain.stages, hasLength(1));
+    });
+  });
+
+  test('Pokemon.speciesName from species field, else name', () {
+    expect(
+      Pokemon.fromJson({
+        'id': 10034,
+        'name': 'charizard-mega-x',
+        'species': {'name': 'charizard'},
+      }).speciesName,
+      'charizard',
+    );
+    expect(Pokemon.fromJson({'id': 1, 'name': 'bulbasaur'}).speciesName,
+        'bulbasaur');
   });
 }

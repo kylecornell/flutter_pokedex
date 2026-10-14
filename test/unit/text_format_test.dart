@@ -11,4 +11,9 @@ void main() {
     expect(formatDexNumber(25), '#0025');
     expect(formatDexNumber(1025), '#1025');
   });
+
+  test('formatStatName', () {
+    expect(formatStatName('hp'), 'HP');
+    expect(formatStatName('special-attack'), 'Special Attack');
+  });
 }

@@ -21,4 +21,12 @@ class PokeApiDataSource {
   Future<Map<String, dynamic>> fetchPokemon(String idOrName) {
     return _client.getJson('pokemon/${idOrName.toLowerCase()}');
   }
+
+  Future<Map<String, dynamic>> fetchSpecies(String name) {
+    return _client.getJson('pokemon-species/${name.toLowerCase()}');
+  }
+
+  Future<Map<String, dynamic>> fetchEvolutionChain(int id) {
+    return _client.getJson('evolution-chain/$id');
+  }
 }

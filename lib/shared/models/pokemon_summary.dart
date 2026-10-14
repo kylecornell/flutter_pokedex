@@ -1,15 +1,19 @@
 import 'pokemon.dart';
 
+/// `https://pokeapi.co/api/v2/pokemon/25/` -> `25`
+int idFromUrl(String url) {
+  final segments = Uri.parse(url).pathSegments.where((s) => s.isNotEmpty);
+  return int.parse(segments.last);
+}
+
 /// Lightweight list entry from `GET /pokemon?limit=&offset=`.
 class PokemonSummary {
   const PokemonSummary({required this.id, required this.name});
 
   /// The list endpoint gives `{name, url}`; id is the last URL segment.
   factory PokemonSummary.fromJson(Map<String, dynamic> json) {
-    final url = json['url'] as String;
-    final segments = Uri.parse(url).pathSegments.where((s) => s.isNotEmpty);
     return PokemonSummary(
-      id: int.parse(segments.last),
+      id: idFromUrl(json['url'] as String),
       name: json['name'] as String? ?? 'unknown',
     );
   }

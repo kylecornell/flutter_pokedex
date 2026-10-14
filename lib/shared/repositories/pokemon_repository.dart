@@ -1,6 +1,7 @@
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/app_exception.dart';
 import '../datasources/pokeapi_datasource.dart';
+import '../models/evolution_chain.dart';
 import '../models/pokemon.dart';
 import '../models/pokemon_summary.dart';
 
@@ -14,6 +15,7 @@ class PokemonRepository {
 
   final PokeApiDataSource _dataSource;
   final Map<String, Pokemon> _cache = {};
+  final Map<String, EvolutionChain?> _evolutionCache = {};
   List<PokemonSummary>? _index;
 
   Future<PokemonPage> getPage({
@@ -43,6 +45,26 @@ class PokemonRepository {
     _cache[pokemon.id.toString()] = pokemon;
     _cache[pokemon.name] = pokemon;
     return pokemon;
+  }
+
+  /// Evolution family of a species, or null when the API lists none.
+  Future<EvolutionChain?> getEvolutionChain(String speciesName) async {
+    final key = speciesName.toLowerCase();
+    if (_evolutionCache.containsKey(key)) return _evolutionCache[key];
+
+    final species = await _dataSource.fetchSpecies(key);
+    final url = _parse(
+      () => (species['evolution_chain'] as Map<String, dynamic>?)?['url']
+          as String?,
+    );
+
+    EvolutionChain? chain;
+    if (url != null) {
+      final json = await _dataSource.fetchEvolutionChain(idFromUrl(url));
+      chain = _parse(() => EvolutionChain.fromJson(json));
+    }
+    _evolutionCache[key] = chain;
+    return chain;
   }
 
   T _parse<T>(T Function() parse) {
