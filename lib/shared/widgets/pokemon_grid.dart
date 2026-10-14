@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/pokemon_summary.dart';
+import '../providers/settings_provider.dart';
 import 'pokemon_card.dart';
 
 /// Scrollable grid of [PokemonCard]s with an optional [footer]
 /// (spinner / retry) shown below the last row.
-class PokemonGrid extends StatelessWidget {
+class PokemonGrid extends ConsumerWidget {
   const PokemonGrid({
     super.key,
     required this.items,
@@ -20,15 +22,18 @@ class PokemonGrid extends StatelessWidget {
   final void Function(PokemonSummary pokemon)? onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final density =
+        ref.watch(settingsProvider.select((s) => s.gridDensity));
+
     return CustomScrollView(
       controller: controller,
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.all(12),
           sliver: SliverGrid.builder(
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 180,
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: density.maxCardWidth,
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
               childAspectRatio: 0.85,
