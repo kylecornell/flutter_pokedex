@@ -19,6 +19,12 @@ class HomeScreen extends StatelessWidget {
               icon: const Icon(Icons.catching_pokemon),
               label: const Text('Open Pokédex'),
             ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => context.push('/types'),
+              icon: const Icon(Icons.bubble_chart),
+              label: const Text('Type Explorer'),
+            ),
           ],
         ),
       ),

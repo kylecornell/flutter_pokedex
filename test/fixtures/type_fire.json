@@ -1,0 +1,16 @@
+{
+  "name": "fire",
+  "damage_relations": {
+    "double_damage_to": [{"name": "bug"}, {"name": "steel"}, {"name": "grass"}, {"name": "ice"}],
+    "half_damage_to": [{"name": "fire"}, {"name": "water"}, {"name": "rock"}, {"name": "dragon"}],
+    "no_damage_to": [],
+    "double_damage_from": [{"name": "water"}, {"name": "ground"}, {"name": "rock"}],
+    "half_damage_from": [{"name": "fire"}, {"name": "grass"}, {"name": "ice"}, {"name": "bug"}, {"name": "steel"}, {"name": "fairy"}],
+    "no_damage_from": []
+  },
+  "pokemon": [
+    {"slot": 1, "pokemon": {"name": "charizard", "url": "https://pokeapi.co/api/v2/pokemon/6/"}},
+    {"slot": 1, "pokemon": {"name": "charmander", "url": "https://pokeapi.co/api/v2/pokemon/4/"}},
+    {"slot": 1, "pokemon": {"name": "charizard-mega-x", "url": "https://pokeapi.co/api/v2/pokemon/10034/"}}
+  ]
+}

@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/error_view.dart';
 import '../../../../shared/models/pokemon_summary.dart';
+import '../../../../shared/providers/type_providers.dart';
 import '../providers/pokedex_list_provider.dart';
 import '../providers/pokedex_search_provider.dart';
 import '../widgets/pokemon_grid.dart';
+import '../widgets/type_filter_bar.dart';
 
 class PokedexScreen extends ConsumerStatefulWidget {
   const PokedexScreen({super.key});
@@ -47,6 +49,7 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(pokedexSearchQueryProvider);
+    final typeFilter = ref.watch(pokedexTypeFilterProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pokédex')),
@@ -71,8 +74,14 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
               onChanged: ref.read(pokedexSearchQueryProvider.notifier).set,
             ),
           ),
+          TypeFilterBar(
+            selected: typeFilter,
+            onSelected: ref.read(pokedexTypeFilterProvider.notifier).select,
+          ),
           Expanded(
-            child: query.trim().isEmpty ? _buildBrowse() : _buildSearch(),
+            child: query.trim().isEmpty && typeFilter == null
+                ? _buildBrowse()
+                : _buildSearch(),
           ),
         ],
       ),
@@ -125,7 +134,12 @@ class _PokedexScreenState extends ConsumerState<PokedexScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => ErrorView(
         error: e,
-        onRetry: () => ref.invalidate(pokemonIndexProvider),
+        onRetry: () {
+          final type = ref.read(pokedexTypeFilterProvider);
+          ref.invalidate(
+            type == null ? pokemonIndexProvider : pokemonTypeProvider(type),
+          );
+        },
       ),
       data: (items) => items.isEmpty
           ? const Center(child: Text('No Pokémon found.'))

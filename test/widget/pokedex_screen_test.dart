@@ -9,18 +9,30 @@ import 'package:pokedex_app/features/pokedex/presentation/screens/pokedex_screen
 import 'package:pokedex_app/shared/datasources/pokeapi_datasource.dart';
 import 'package:pokedex_app/shared/providers/pokemon_providers.dart';
 import 'package:pokedex_app/shared/repositories/pokemon_repository.dart';
+import 'package:pokedex_app/shared/repositories/type_repository.dart';
+
+const _fireJson = '''
+{"name":"fire","damage_relations":{},"pokemon":[
+  {"slot":1,"pokemon":{"name":"ivysaur","url":"https://pokeapi.co/api/v2/pokemon/2/"}},
+  {"slot":1,"pokemon":{"name":"ivysaur-mega","url":"https://pokeapi.co/api/v2/pokemon/10001/"}}]}''';
 
 const _listJson = '''
 {"count":2,"next":null,"results":[
   {"name":"bulbasaur","url":"https://pokeapi.co/api/v2/pokemon/1/"},
   {"name":"ivysaur","url":"https://pokeapi.co/api/v2/pokemon/2/"}]}''';
 
+Future<http.Response> _withTypes(http.Request req) async => req.url.path.contains('/type/')
+    ? http.Response(_fireJson, 200)
+    : http.Response(_listJson, 200);
+
 Widget _app(Future<http.Response> Function(http.Request) handler) {
-  final repo = PokemonRepository(
-    PokeApiDataSource(ApiClient(client: MockClient(handler))),
-  );
+  final dataSource = PokeApiDataSource(ApiClient(client: MockClient(handler)));
   return ProviderScope(
-    overrides: [pokemonRepositoryProvider.overrideWithValue(repo)],
+    overrides: [
+      pokemonRepositoryProvider
+          .overrideWithValue(PokemonRepository(dataSource)),
+      typeRepositoryProvider.overrideWithValue(TypeRepository(dataSource)),
+    ],
     child: const MaterialApp(home: PokedexScreen()),
   );
 }
@@ -92,5 +104,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('details 2'), findsOneWidget);
+  });
+
+  testWidgets('type chip filters list to that type, forms excluded',
+      (tester) async {
+    await tester.pumpWidget(_app(_withTypes));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Bulbasaur'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Fire'));
+    // type request -> pokemonOfTypeProvider -> results provider
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+
+    expect(find.text('Ivysaur'), findsOneWidget);
+    expect(find.text('Bulbasaur'), findsNothing);
+    expect(find.text('Ivysaur Mega'), findsNothing);
+
+    // Tapping the selected chip clears the filter.
+    await tester.tap(find.widgetWithText(FilterChip, 'Fire'));
+    await tester.pump();
+    expect(find.text('Bulbasaur'), findsOneWidget);
   });
 }

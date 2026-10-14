@@ -29,4 +29,9 @@ class PokeApiDataSource {
   Future<Map<String, dynamic>> fetchEvolutionChain(int id) {
     return _client.getJson('evolution-chain/$id');
   }
+
+  /// [name] is a type name such as `fire`.
+  Future<Map<String, dynamic>> fetchType(String name) {
+    return _client.getJson('type/${name.toLowerCase()}');
+  }
 }

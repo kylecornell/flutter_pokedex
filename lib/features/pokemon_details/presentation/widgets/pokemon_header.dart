@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/text_format.dart';
 import '../../../../shared/models/pokemon.dart';
@@ -35,7 +36,11 @@ class PokemonHeader extends StatelessWidget {
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
-          children: [for (final t in pokemon.types) TypeBadge(type: t)],
+          children: [
+            // Tapping a type opens the Type Explorer for it.
+            for (final t in pokemon.types)
+              TypeBadge(type: t, onTap: () => context.push('/types/$t')),
+          ],
         ),
         const SizedBox(height: 12),
         Row(

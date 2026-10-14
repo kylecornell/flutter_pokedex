@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
 import '../datasources/pokeapi_datasource.dart';
 import '../repositories/pokemon_repository.dart';
+import '../repositories/type_repository.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final client = ApiClient();
@@ -16,4 +17,8 @@ final pokeApiDataSourceProvider = Provider<PokeApiDataSource>(
 
 final pokemonRepositoryProvider = Provider<PokemonRepository>(
   (ref) => PokemonRepository(ref.watch(pokeApiDataSourceProvider)),
+);
+
+final typeRepositoryProvider = Provider<TypeRepository>(
+  (ref) => TypeRepository(ref.watch(pokeApiDataSourceProvider)),
 );

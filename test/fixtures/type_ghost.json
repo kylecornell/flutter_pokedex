@@ -1,0 +1,12 @@
+{
+  "name": "ghost",
+  "damage_relations": {
+    "double_damage_to": [{"name": "ghost"}, {"name": "psychic"}],
+    "half_damage_to": [{"name": "dark"}],
+    "no_damage_to": [{"name": "normal"}],
+    "double_damage_from": [{"name": "ghost"}, {"name": "dark"}],
+    "half_damage_from": [{"name": "poison"}, {"name": "bug"}],
+    "no_damage_from": [{"name": "normal"}, {"name": "fighting"}]
+  },
+  "pokemon": []
+}
