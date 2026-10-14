@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/error_view.dart';
 import '../../../../shared/models/pokemon_summary.dart';
+import '../../../../shared/providers/pokemon_providers.dart';
+import '../../../../shared/widgets/pokemon_grid.dart';
 import '../../../../shared/providers/type_providers.dart';
 import '../providers/pokedex_list_provider.dart';
 import '../providers/pokedex_search_provider.dart';
-import '../widgets/pokemon_grid.dart';
 import '../widgets/type_filter_bar.dart';
 
 class PokedexScreen extends ConsumerStatefulWidget {

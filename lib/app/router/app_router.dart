@@ -5,6 +5,7 @@ import '../../features/type_explorer/presentation/screens/type_explorer_screen.d
 import '../../features/type_explorer/presentation/screens/type_matchup_screen.dart';
 import '../../features/pokemon_details/presentation/screens/pokemon_detail_screen.dart';
 import '../../features/pokedex/presentation/screens/pokedex_screen.dart';
+import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 
 /// Central route table. Add new screens here.
@@ -23,6 +24,10 @@ final GoRouter appRouter = GoRouter(
       path: '/pokemon/:id',
       builder: (context, state) =>
           PokemonDetailScreen(pokemonId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/favorites',
+      builder: (context, state) => const FavoritesScreen(),
     ),
     GoRoute(
       path: '/types',

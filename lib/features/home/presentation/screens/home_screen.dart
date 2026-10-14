@@ -21,6 +21,12 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
+              onPressed: () => context.push('/favorites'),
+              icon: const Icon(Icons.favorite),
+              label: const Text('Favorites'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
               onPressed: () => context.push('/types'),
               icon: const Icon(Icons.bubble_chart),
               label: const Text('Type Explorer'),

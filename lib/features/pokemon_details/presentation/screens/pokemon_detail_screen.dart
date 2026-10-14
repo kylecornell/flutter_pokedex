@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/text_format.dart';
 import '../../../../core/widgets/error_view.dart';
+import '../../../../shared/widgets/favorite_button.dart';
 import '../providers/pokemon_detail_provider.dart';
 import '../widgets/base_stats_card.dart';
 import '../widgets/evolution_chain_section.dart';
@@ -26,6 +27,10 @@ class PokemonDetailScreen extends ConsumerWidget {
             orElse: () => 'Pokémon',
           ),
         ),
+        actions: [
+          if (detail.value case final pokemon?)
+            FavoriteButton(pokemonId: pokemon.id),
+        ],
       ),
       body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),

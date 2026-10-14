@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pokedex_app/core/network/api_client.dart';
 import 'package:pokedex_app/features/pokedex/presentation/screens/pokedex_screen.dart';
 import 'package:pokedex_app/shared/datasources/pokeapi_datasource.dart';
 import 'package:pokedex_app/shared/providers/pokemon_providers.dart';
 import 'package:pokedex_app/shared/repositories/pokemon_repository.dart';
 import 'package:pokedex_app/shared/repositories/type_repository.dart';
+
+import '../helpers/prefs.dart';
+
+
+late Override _prefs;
 
 const _fireJson = '''
 {"name":"fire","damage_relations":{},"pokemon":[
@@ -29,6 +36,7 @@ Widget _app(Future<http.Response> Function(http.Request) handler) {
   final dataSource = PokeApiDataSource(ApiClient(client: MockClient(handler)));
   return ProviderScope(
     overrides: [
+      _prefs,
       pokemonRepositoryProvider
           .overrideWithValue(PokemonRepository(dataSource)),
       typeRepositoryProvider.overrideWithValue(TypeRepository(dataSource)),
@@ -38,6 +46,8 @@ Widget _app(Future<http.Response> Function(http.Request) handler) {
 }
 
 void main() {
+  setUp(() async => _prefs = await prefsOverride());
+
   testWidgets('shows loaded Pokémon and filters by search', (tester) async {
     await tester.pumpWidget(_app((_) async => http.Response(_listJson, 200)));
     await tester.pump();
@@ -93,7 +103,7 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [pokemonRepositoryProvider.overrideWithValue(repo)],
+        overrides: [_prefs, pokemonRepositoryProvider.overrideWithValue(repo)],
         child: MaterialApp.router(routerConfig: router),
       ),
     );
@@ -127,5 +137,18 @@ void main() {
     await tester.tap(find.widgetWithText(FilterChip, 'Fire'));
     await tester.pump();
     expect(find.text('Bulbasaur'), findsOneWidget);
+  });
+
+  testWidgets('heart on a card saves the favorite', (tester) async {
+    await tester.pumpWidget(_app((_) async => http.Response(_listJson, 200)));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Add to favorites').last);
+    await tester.pump();
+
+    expect(find.byTooltip('Remove from favorites'), findsOneWidget);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getStringList('favorite_pokemon_ids'), ['2']);
   });
 }

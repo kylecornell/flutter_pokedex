@@ -15,13 +15,6 @@ class PokedexSearchQuery extends Notifier<String> {
 final pokedexSearchQueryProvider =
     NotifierProvider<PokedexSearchQuery, String>(PokedexSearchQuery.new);
 
-/// Name + id of every Pokémon, fetched once (needed because the API has no
-/// search endpoint).
-final pokemonIndexProvider = FutureProvider<List<PokemonSummary>>(
-  (ref) => ref.watch(pokemonRepositoryProvider).getIndex(),
-  retry: (_, _) => null, // show errors immediately; user retries manually
-);
-
 /// Matches by name substring or exact Pokédex number (`25` or `#25`).
 List<PokemonSummary> filterPokemon(List<PokemonSummary> all, String query) {
   final q = query.trim().toLowerCase().replaceFirst('#', '');

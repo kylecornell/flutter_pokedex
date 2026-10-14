@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../shared/models/pokemon_summary.dart';
+import '../models/pokemon_summary.dart';
 import 'pokemon_card.dart';
 
 /// Scrollable grid of [PokemonCard]s with an optional [footer]
